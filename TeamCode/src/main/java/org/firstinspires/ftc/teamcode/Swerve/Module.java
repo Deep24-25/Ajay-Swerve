@@ -102,10 +102,6 @@ public class Module {
         this.target = normalizeRadians(target);
     }
 
-    public String getTelemetry(String name) {
-        return String.format(Locale.ENGLISH, "%s: Motor Flipped: %b \ncurrent position %.2f target position %.2f flip modifer = %d motor power = %.2f", name, wheelFlipped, getModuleRotation(), getTargetRotation(), flipModifier(), lastMotorPower);
-    }
-
     public int flipModifier() {
         return wheelFlipped ? -1 : 1;
     }
