@@ -19,7 +19,7 @@ import org.firstinspires.ftc.teamcode.Hardware.AbsoluteAnalogEncoder;
 import java.util.Locale;
 
 public class Module {
-    public static double P = 0, I = 0, D = 0;
+    public static double P = 1, I = 0, D = 0;
     public static double K_STATIC = 0;
 
     public static double MAX_SERVO = 1, MAX_MOTOR = 1;
@@ -92,6 +92,7 @@ public class Module {
     }
 
     public void setMotorPower(double power) {
+        power = power*0.2;
         if (wheelFlipped) power *= -1;
         lastMotorPower = power;
         motor.setPower(power);

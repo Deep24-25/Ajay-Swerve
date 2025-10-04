@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode;
+/* package org.firstinspires.ftc.teamcode;
 
 import static org.firstinspires.ftc.robotcore.external.navigation.AngleUnit.normalizeRadians;
 
@@ -6,9 +6,8 @@ import com.arcrobotics.ftclib.controller.PIDFController;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
-import com.qualcomm.robotcore.util.ElapsedTime;
 
+import org.firstinspires.ftc.robotcontroller.external.samples.RobotHardware;
 import org.firstinspires.ftc.teamcode.Geo.Point;
 import org.firstinspires.ftc.teamcode.Geo.Pose;
 import org.firstinspires.ftc.teamcode.Swerve.DT;
@@ -20,6 +19,7 @@ public class SwerveTest extends LinearOpMode {
     private ElapsedTime timer;
     private double loopTime = 0;
 
+    private RobotHardware HWMap;
     private DT swerve;
 
     public static double position;
@@ -52,6 +52,16 @@ public class SwerveTest extends LinearOpMode {
 
     @Override
     public void runOpMode() throws InterruptedException {
+
+        HWMap = new RobotHardware(hardwareMap, false);
+        swerve = new DT(HWMap);
+
+        telemetry.addData("Status", "Initialized");
+        telemetry.update();
+
+        waitForStart();
+        runtime.reset();
+
 
         while (opModeIsActive()) {
 
@@ -102,7 +112,10 @@ public class SwerveTest extends LinearOpMode {
             );
 
             swerve.read();
+            swerve.set(drive);
+            swerve.write();
+            swerve.updateModules();
         }
         }
 
-}
+} */

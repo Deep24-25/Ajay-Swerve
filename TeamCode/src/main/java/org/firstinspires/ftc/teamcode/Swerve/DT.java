@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.Swerve;
+/*package org.firstinspires.ftc.teamcode.Swerve;
 
 import static java.lang.Math.atan2;
 import static java.lang.Math.hypot;
@@ -7,10 +7,11 @@ import androidx.annotation.NonNull;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
 
+import org.firstinspires.ftc.robotcontroller.external.samples.RobotHardware;
 import org.firstinspires.ftc.teamcode.Geo.MathUtils;
 import org.firstinspires.ftc.teamcode.Geo.Pose;
 import org.firstinspires.ftc.teamcode.Hardware.AbsoluteAnalogEncoder;
-import org.firstinspires.ftc.teamcode.Hardware.RobotHardware;
+import org.firstinspires.ftc.teamcode.R;
 
 public class DT {
     public static boolean maintainHeading;
@@ -35,10 +36,10 @@ public class DT {
     private boolean locked = false;
 
     public DT(RobotHardware robot) {
-        frontLeftModule = new Module(robot.frontLeftMotor, robot.frontLeftServo, new AbsoluteAnalogEncoder(robot.frontLeftEncoder, 3.3).zero(frontLeftOffset).setInverted(true));
-        backLeftModule = new Module(robot.backLeftMotor, robot.backLeftServo, new AbsoluteAnalogEncoder(robot.backLeftEncoder, 3.3).zero(backLeftOffset).setInverted(true));
-        backRightModule = new Module(robot.backRightMotor, robot.backRightServo, new AbsoluteAnalogEncoder(robot.backRightEncoder, 3.3).zero(backRightOffset).setInverted(true));
-        frontRightModule = new Module(robot.frontRightMotor, robot.frontRightServo, new AbsoluteAnalogEncoder(robot.frontRightEncoder, 3.3).zero(frontRightOffset).setInverted(true));
+        frontLeftModule = new Module(robot.FLM, robot.FLS, new AbsoluteAnalogEncoder(robot.FLE, 3.3).zero(frontLeftOffset).setInverted(true));
+        backLeftModule = new Module(robot.BLM, robot.BLS, new AbsoluteAnalogEncoder(robot.BLE, 3.3).zero(backLeftOffset).setInverted(true));
+        backRightModule = new Module(robot.BRM, robot.BRS, new AbsoluteAnalogEncoder(robot.BRE, 3.3).zero(backRightOffset).setInverted(true));
+        frontRightModule = new Module(robot.FRM, robot.FRS, new AbsoluteAnalogEncoder(robot.FRE, 3.3).zero(frontRightOffset).setInverted(true));
 
         modules = new Module[]{frontLeftModule, frontRightModule, backRightModule, backLeftModule};
         for (Module m : modules) m.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -100,5 +101,5 @@ public class DT {
         return imuAngle-imuOffset;
     }
 
-
 }
+ */
