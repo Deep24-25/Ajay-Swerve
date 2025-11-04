@@ -37,6 +37,11 @@ public class AbsoluteAnalogEncoder {
 
     public double getCurrentPosition() {
         double pos = getVoltage()/3.3 * Math.PI*2 - offset;
+        if (inverted) {
+            pos = Math.PI * 2 - pos;
+        } else if ( !inverted) {
+            pos = pos;
+        }
         return pos;
     }
 
