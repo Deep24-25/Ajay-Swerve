@@ -2,24 +2,23 @@ package org.firstinspires.ftc.teamcode.Swerve;
 
 import static org.firstinspires.ftc.robotcore.external.navigation.AngleUnit.normalizeRadians;
 
-import com.arcrobotics.ftclib.controller.PIDFController;
+import com.acmerobotics.dashboard.config.Config;
+import com.arcrobotics.ftclib.controller.PIDController;
 import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.CRServoImplEx;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.PwmControl;
 import com.qualcomm.robotcore.hardware.configuration.typecontainers.MotorConfigurationType;
 import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.teamcode.Hardware.AbsoluteAnalogEncoder;
 
-import java.util.Locale;
-
+@Config
 public class Module {
-    public static double P = 1, I = 0, D = 0;
+    public static double P = 0.2, I = 0, D = 0;
     public static double K_STATIC = 0;
 
     public static double MAX_SERVO = 1, MAX_MOTOR = 1;
@@ -33,11 +32,12 @@ public class Module {
     private DcMotorEx motor;
     private CRServo servo;
     private AbsoluteAnalogEncoder encoder;
-    private PIDFController rotationController;
+    private PIDController rotationController;
 
     public boolean wheelFlipped = false;
     private double target = 0.0;
     private double position = 0.0;
+    private boolean inverted = false;
 
     public Module(DcMotorEx m, CRServo s, AbsoluteAnalogEncoder e) {
         motor = m;
@@ -50,7 +50,7 @@ public class Module {
         ((CRServoImplEx) servo).setPwmRange(new PwmControl.PwmRange(500, 2500, 5000));
 
         encoder = e;
-        rotationController = new PIDFController(P, I, D, 0);
+        rotationController = new PIDController(P, I, D);
         motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
     }
 
@@ -60,27 +60,22 @@ public class Module {
                 new AbsoluteAnalogEncoder(hardwareMap.get(AnalogInput.class, eName)));
     }
 
-    public void read() {
-        position = encoder.getCurrentPosition();
-    }
-
     public void update() {
-        rotationController.setPIDF(P, I, D, 0);
+        rotationController.setPID(P, I, D);
         double target = getTargetRotation(), current = getModuleRotation();
 
         double error = normalizeRadians(target - current);
-        if (MOTOR_FLIPPING && Math.abs(error) > Math.PI / 2) {
+        /* if (MOTOR_FLIPPING && Math.abs(error) > Math.PI / 2) {
             target = normalizeRadians(target - Math.PI);
             wheelFlipped = true;
         } else {
             wheelFlipped = false;
-        }
+        } */
 
-        error = normalizeRadians(target - current);
+        //if (Math.abs(error) < 0.2) { error = 0.0; }
 
         double power = Range.clip(rotationController.calculate(0, error), -MAX_SERVO, MAX_SERVO);
-        if (Double.isNaN(power)) power = 0;
-        servo.setPower(power + (Math.abs(error) > 0.02 ? K_STATIC : 0) * Math.signum(power));
+        servo.setPower(power + K_STATIC);
     }
 
     public double getTargetRotation() {
@@ -88,12 +83,15 @@ public class Module {
     }
 
     public double getModuleRotation() {
-        return normalizeRadians(position - Math.PI);
+        return normalizeRadians(encoder.getCurrentPosition() - Math.PI);
     }
 
     public void setMotorPower(double power) {
-        power = power*0.2;
+        power = power*1.0;
         if (wheelFlipped) power *= -1;
+        if (inverted) {
+            power = -1*power;
+        }
         lastMotorPower = power;
         motor.setPower(power);
     }
@@ -102,21 +100,8 @@ public class Module {
         this.target = normalizeRadians(target);
     }
 
-    public int flipModifier() {
-        return wheelFlipped ? -1 : 1;
-    }
-
-
     public void setMode(DcMotor.RunMode runMode) {
         motor.setMode(runMode);
-    }
-
-    public void setZeroPowerBehavior(DcMotor.ZeroPowerBehavior zeroPowerBehavior) {
-        motor.setZeroPowerBehavior(zeroPowerBehavior);
-    }
-
-    public void setPIDFCoefficients(DcMotor.RunMode runMode, PIDFCoefficients coefficients) {
-        motor.setPIDFCoefficients(runMode, coefficients);
     }
 
     public double lastMotorPower = 0;
@@ -125,4 +110,9 @@ public class Module {
         return servo.getPower();
     }
 
+    public double getcurrentposition() { return encoder.getCurrentPosition();}
+
+    public void setInverted(boolean inverted) { this.inverted = inverted;}
+
+    public double geterror() {return normalizeRadians(getTargetRotation()) - normalizeRadians(getModuleRotation());}
 }
