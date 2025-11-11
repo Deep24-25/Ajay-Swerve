@@ -1,7 +1,6 @@
 package org.firstinspires.ftc.teamcode.Hardware;
 
-import static org.firstinspires.ftc.teamcode.Geo.MathUtils.norm;
-import static org.firstinspires.ftc.teamcode.Geo.MathUtils.normDelta;
+import static org.firstinspires.ftc.robotcore.external.navigation.AngleUnit.normalizeRadians;
 
 import com.acmerobotics.dashboard.config.Config;
 import com.qualcomm.robotcore.hardware.AnalogInput;
@@ -36,11 +35,11 @@ public class AbsoluteAnalogEncoder {
     }
 
     public double getCurrentPosition() {
-        double pos = getVoltage()/3.3 * Math.PI*2 - offset;
+        double pos = normalizeRadians(getVoltage()/3.3 * Math.PI*2 - offset);
         if (inverted) {
-            pos = Math.PI * 2 - pos;
+            pos = normalizeRadians(pos - Math.PI);
         } else if ( !inverted) {
-            pos = pos;
+            pos = normalizeRadians(pos);
         }
         return pos;
     }

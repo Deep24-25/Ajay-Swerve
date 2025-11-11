@@ -2,15 +2,14 @@ package org.firstinspires.ftc.teamcode.Swerve;
 
 import static org.firstinspires.ftc.robotcore.external.navigation.AngleUnit.normalizeRadians;
 
+import static java.lang.Math.signum;
+
 import com.acmerobotics.dashboard.config.Config;
 import com.arcrobotics.ftclib.controller.PIDController;
-import com.qualcomm.robotcore.hardware.AnalogInput;
-import com.qualcomm.robotcore.hardware.CRServo;
-import com.qualcomm.robotcore.hardware.CRServoImplEx;
+import com.qualcomm.robotcore.hardware.PwmControl;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.hardware.PwmControl;
+import com.qualcomm.robotcore.hardware.CRServoImplEx;
 import com.qualcomm.robotcore.hardware.configuration.typecontainers.MotorConfigurationType;
 import com.qualcomm.robotcore.util.Range;
 
@@ -18,19 +17,13 @@ import org.firstinspires.ftc.teamcode.Hardware.AbsoluteAnalogEncoder;
 
 @Config
 public class Module {
-    public static double P = 0.2, I = 0, D = 0;
-    public static double K_STATIC = 0;
 
-    public static double MAX_SERVO = 1, MAX_MOTOR = 1;
+    private double MAX_SERVO = 1, MAX_MOTOR = 1;
 
-    public static boolean MOTOR_FLIPPING = true;
-
-    public static double WHEEL_RADIUS = 1; // in
-    public static double GEAR_RATIO = 1 / (3.5 * 1.5 * 2); // output (wheel) speed / input (motor) speed
-    public static final double TICKS_PER_REV = 28;
+    private boolean MOTOR_FLIPPING = true;
 
     private DcMotorEx motor;
-    private CRServo servo;
+    private CRServoImplEx servo;
     private AbsoluteAnalogEncoder encoder;
     private PIDController rotationController;
 
@@ -39,7 +32,9 @@ public class Module {
     private double position = 0.0;
     private boolean inverted = false;
 
-    public Module(DcMotorEx m, CRServo s, AbsoluteAnalogEncoder e) {
+    private double k_static, p, i, d;
+
+    public Module(DcMotorEx m, CRServoImplEx s, AbsoluteAnalogEncoder e, double P, double I, double D, double K_Static) {
         motor = m;
         MotorConfigurationType motorConfigurationType = motor.getMotorType().clone();
         motorConfigurationType.setAchieveableMaxRPMFraction(MAX_MOTOR);
@@ -47,52 +42,43 @@ public class Module {
         motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         servo = s;
-        ((CRServoImplEx) servo).setPwmRange(new PwmControl.PwmRange(500, 2500, 5000));
+        servo.setPwmRange(new PwmControl.PwmRange(500, 2500, 5000));
 
         encoder = e;
+
+        p = P; i = I; d = D; k_static = K_Static;
         rotationController = new PIDController(P, I, D);
+
         motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
     }
 
-    public Module(HardwareMap hardwareMap, String mName, String sName, String eName) {
-        this(hardwareMap.get(DcMotorEx.class, mName),
-                hardwareMap.get(CRServo.class, sName),
-                new AbsoluteAnalogEncoder(hardwareMap.get(AnalogInput.class, eName)));
-    }
-
     public void update() {
-        rotationController.setPID(P, I, D);
+        rotationController.setPID(p, i, d);
+
         double target = getTargetRotation(), current = getModuleRotation();
 
-        double error = normalizeRadians(target - current);
-        /* if (MOTOR_FLIPPING && Math.abs(error) > Math.PI / 2) {
+        double error = target - current;
+
+        if (Math.abs(error) > Math.PI / 2) {
             target = normalizeRadians(target - Math.PI);
+            error = normalizeRadians(target - current);
             wheelFlipped = true;
-        } else {
+        }
+        else {
             wheelFlipped = false;
-        } */
+        }
 
-        //if (Math.abs(error) < 0.2) { error = 0.0; }
-
-        double power = Range.clip(rotationController.calculate(0, error), -MAX_SERVO, MAX_SERVO);
-        servo.setPower(power + K_STATIC);
-    }
-
-    public double getTargetRotation() {
-        return normalizeRadians(target - Math.PI);
-    }
-
-    public double getModuleRotation() {
-        return normalizeRadians(encoder.getCurrentPosition() - Math.PI);
+        double power = Range.clip(rotationController.calculate(error, 0), -MAX_SERVO, MAX_SERVO);
+        servo.setPower(power + (Math.abs(error) > 0.02 ? signum(power) * k_static : 0));
     }
 
     public void setMotorPower(double power) {
-        power = power*1.0;
-        if (wheelFlipped) power *= -1;
-        if (inverted) {
-            power = -1*power;
+        if (wheelFlipped) {
+            power = -1 * power;
         }
-        lastMotorPower = power;
+        else {
+            power = power;
+        }
         motor.setPower(power);
     }
 
@@ -100,19 +86,17 @@ public class Module {
         this.target = normalizeRadians(target);
     }
 
+    public double getTargetRotation() {
+        return normalizeRadians(target );
+    }
+
+    public double getModuleRotation() {
+        return normalizeRadians(encoder.getCurrentPosition());
+    }
+
     public void setMode(DcMotor.RunMode runMode) {
         motor.setMode(runMode);
     }
 
-    public double lastMotorPower = 0;
-
-    public double getServoPower() {
-        return servo.getPower();
-    }
-
     public double getcurrentposition() { return encoder.getCurrentPosition();}
-
-    public void setInverted(boolean inverted) { this.inverted = inverted;}
-
-    public double geterror() {return normalizeRadians(getTargetRotation()) - normalizeRadians(getModuleRotation());}
 }
