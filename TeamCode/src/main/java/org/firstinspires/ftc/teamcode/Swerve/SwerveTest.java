@@ -1,17 +1,26 @@
 package org.firstinspires.ftc.teamcode.Swerve;
 
+import static org.firstinspires.ftc.robotcore.external.navigation.AngleUnit.RADIANS;
+
 import java.util.Arrays;
 import static java.lang.Math.abs;
 import static java.lang.Math.atan2;
+import static java.lang.Math.cos;
 import static java.lang.Math.hypot;
+import static java.lang.Math.sin;
+
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
+import com.pedropathing.localization.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
+
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.Geo.MathUtils;
 import org.firstinspires.ftc.teamcode.Geo.Point;
 import org.firstinspires.ftc.teamcode.Geo.Pose;
@@ -44,7 +53,11 @@ public class SwerveTest extends LinearOpMode {
     private AnalogInput BRE = null;
 
     private AbsoluteAnalogEncoder AFLE, AFRE, ABLE, ABRE;
-    public static double AFLEzero, AFREzero, ABLEzero,ABREzero;
+    public static double zeros[] = new double[]{0.2, 0.3, -0.2, 0.15};
+    public static boolean inverses[] = new boolean[]{false,false,false,false};
+    public static double MotorScaling[] = new double[]{1,-1,1,-1};
+
+    GoBildaPinpointDriver odo;
 
     public Module frontLeftModule, backLeftModule, backRightModule, frontRightModule;
     public Module[] modules;
@@ -57,6 +70,9 @@ public class SwerveTest extends LinearOpMode {
     private double trackwidth = 13.0;
     private double wheelbase = 13.0;
     private double R;
+
+    private double Xoffset, Yoffset;
+    private Pose2D pos;
 
     private double MAX;
 
@@ -85,17 +101,17 @@ public class SwerveTest extends LinearOpMode {
         ABLE = new AbsoluteAnalogEncoder(BLE, 3.3);
         ABRE = new AbsoluteAnalogEncoder(BRE, 3.3);
 
-        AFLE.zero(-0.5);
-        AFLE.setInverted(true);
+        AFLE.zero(zeros[0]);
+        AFLE.setInverted(inverses[0]);
 
-        AFRE.zero(0.125);
-        AFRE.setInverted(true);
+        AFRE.zero(zeros[1]);
+        AFRE.setInverted(inverses[1]);
 
-        ABLE.zero(0.25);
-        ABLE.setInverted(true);
+        ABLE.zero(zeros[2]);
+        ABLE.setInverted(inverses[2]);
 
-        ABRE.zero(0);
-        ABRE.setInverted(true);
+        ABRE.zero(zeros[3]);
+        ABRE.setInverted(inverses[3]);
 
         frontLeftModule = new Module(FLM,FLS,AFLE,0.5,0.0,0.002,0.02);
         frontRightModule = new Module(FRM,FRS,AFRE, 0.5,0.0,0.002,0.02);
@@ -105,13 +121,18 @@ public class SwerveTest extends LinearOpMode {
         modules = new Module[]{frontLeftModule, frontRightModule, backRightModule, backLeftModule};
         for (Module m : modules) m.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
+        odo = hardwareMap.get(GoBildaPinpointDriver.class, "odo");
 
-        IMU imu = hardwareMap.get(IMU.class, "imu");
-        IMU.Parameters parameters = new IMU.Parameters(new RevHubOrientationOnRobot(
-                RevHubOrientationOnRobot.LogoFacingDirection.UP,
-                RevHubOrientationOnRobot.UsbFacingDirection.FORWARD));
-        imu.initialize(parameters);
+        Xoffset = 10.5; Yoffset = 1;
+        odo.setOffsets(Xoffset, Yoffset);
+        odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
+        odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.FORWARD, GoBildaPinpointDriver.EncoderDirection.REVERSED);
 
+        odo.resetPosAndIMU();
+        Pose2D startingpos = new Pose2D(DistanceUnit.CM, 0.0, 0.0, AngleUnit.RADIANS, 0.0);
+        odo.setPosition(startingpos);
+
+        odo.recalibrateIMU();
         telemetry.addData("Status", "Initialized");
         telemetry.update();
         waitForStart();
@@ -119,15 +140,31 @@ public class SwerveTest extends LinearOpMode {
 
         while (opModeIsActive()) {
 
-            x = -gamepad1.left_stick_x;
-            y = gamepad1.left_stick_y;
-            heading = gamepad1.right_trigger - gamepad1.left_trigger;
+
+            AFLE.zero(zeros[0]);
+            AFLE.setInverted(inverses[0]);
+
+            AFRE.zero(zeros[1]);
+            AFRE.setInverted(inverses[1]);
+
+            ABLE.zero(zeros[2]);
+            ABLE.setInverted(inverses[2]);
+
+            ABRE.zero(zeros[3]);
+            ABRE.setInverted(inverses[3]);
+
+            x = gamepad1.left_stick_x;
+            y = -gamepad1.left_stick_y;
+            heading = gamepad1.right_stick_x;
 
             if (gamepad1.options) {
-                imu.resetYaw();
+                odo.resetPosAndIMU();
             }
 
-            BotHeading = imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
+            odo.update();
+
+            pos = odo.getPosition();
+            BotHeading = -pos.getHeading(RADIANS);
 
             if (abs(x) < 0.02){
                 x = 0;
@@ -141,7 +178,6 @@ public class SwerveTest extends LinearOpMode {
 
             Pose drive = new Pose((new Point(x,y).rotate(BotHeading)), heading);
 
-
             double R = hypot(wheelbase, trackwidth);
 
             double  a = drive.x - drive.heading * (wheelbase / R),
@@ -150,17 +186,22 @@ public class SwerveTest extends LinearOpMode {
                     d = drive.y + drive.heading * (trackwidth / R);
 
             //top left, top right, bottom right, bottom left
-            ws = new double[]{hypot(b, d), hypot(b, c), hypot(a, c), hypot(a, d)};
-            wa = new double[]{atan2(b,d), atan2(b,c), atan2(a,c), atan2(a,d)};
+            ws = new double[]{hypot(a, d), hypot(b, c), hypot(a, c), hypot(b, d)};
+            wa = new double[]{atan2(a,d), atan2(b,c), atan2(a,c), atan2(b,d)};
 
             MAX = MathUtils.max(ws);
+
+            /*if (x == 0 && y == 0 && heading == 0){
+                wa = new double[]{atan2(1,1), atan2(-1, 1), atan2(-1, -1), atan2(1, -1)};
+            }*/
 
              for (int i = 0; i < 4; i++) {
                 Module m = modules[i];
                 if (Math.abs(MAX) > 1) ws[i] /= MAX;
-                m.setMotorPower(Math.abs(ws[i]));
+                m.setMotorPower(Math.abs(ws[i])*MotorScaling[i]);
                 m.setTargetRotation(MathUtils.norm(wa[i]));
                 m.update();
+                odo.update();
             }
 
             telemetry.addData("front left target angle", Arrays.toString(wa));
@@ -176,6 +217,9 @@ public class SwerveTest extends LinearOpMode {
             telemetry.addData("x", x);
             telemetry.addData("y", y);
             telemetry.addData("heading", heading);
+            telemetry.addData("BotHeading", BotHeading);
+            telemetry.addData("rotated x", drive.x);
+            telemetry.addData("rotated y", drive.y);
 
             telemetry.update();
         }

@@ -21,7 +21,7 @@ public class PinPointTuner extends LinearOpMode{
     GoBildaPinpointDriver odo;
 
     Pose2D pos;
-    double x, y, heading;
+    public static double x, y, heading;
     public static double Xoffset, Yoffset;
 
 
@@ -29,12 +29,13 @@ public class PinPointTuner extends LinearOpMode{
     public void runOpMode() throws InterruptedException{
         odo = hardwareMap.get(GoBildaPinpointDriver.class, "odo");
 
+        Xoffset = 14; Yoffset = 4;
         odo.setOffsets(Xoffset, Yoffset);
         odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
-        odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.FORWARD, GoBildaPinpointDriver.EncoderDirection.FORWARD);
+        odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.FORWARD, GoBildaPinpointDriver.EncoderDirection.REVERSED);
 
         odo.resetPosAndIMU();
-        Pose2D startingpos = new Pose2D(DistanceUnit.INCH, 0.0, 0.0, AngleUnit.RADIANS, 0.0);
+        Pose2D startingpos = new Pose2D(DistanceUnit.CM, 0.0, 0.0, AngleUnit.RADIANS, 0.0);
         odo.setPosition(startingpos);
 
         telemetry.addData("Status", "Initialized");
@@ -49,11 +50,12 @@ public class PinPointTuner extends LinearOpMode{
 
             pos = odo.getPosition();
             heading = pos.getHeading(RADIANS);
-            x = pos.getX(DistanceUnit.INCH); y = pos.getY(DistanceUnit.INCH);
+            x = pos.getX(DistanceUnit.CM); y = pos.getY(DistanceUnit.CM);
 
             telemetry.addData("x pos", x);
             telemetry.addData("y pos", y);
             telemetry.addData("heading", heading);
+            telemetry.update();
 
         }
     }

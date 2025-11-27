@@ -1,5 +1,8 @@
 package org.firstinspires.ftc.teamcode.Geo;
 
+import static java.lang.Math.cos;
+import static java.lang.Math.sin;
+
 public class Point {
     public double x, y;
 
@@ -59,7 +62,9 @@ public class Point {
     }
 
     public Point rotate(double amount){
-        return Point.polar(radius(), atan()+amount);
+        double X = x * cos(amount) - y * sin(amount);
+        double Y = x * sin(amount) + y * cos(amount);
+        return new Point(X, Y);
     }
 
 }
