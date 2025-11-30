@@ -14,6 +14,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.acmerobotics.dashboard.config.Config;
 import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.CRServoImplEx;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.Hardware.AbsoluteAnalogEncoder;
@@ -23,12 +24,18 @@ import org.firstinspires.ftc.teamcode.Hardware.AbsoluteAnalogEncoder;
 public class RotationTuner extends LinearOpMode{
 
     private ElapsedTime runtime = new ElapsedTime();
-
+//FL, BL, FR, BR
     private CRServoImplEx FLS = null;
     private CRServoImplEx FRS = null;
     private CRServoImplEx BLS = null;
     private CRServoImplEx BRS = null;
     private CRServoImplEx[] servos;
+
+    private DcMotorEx FLM = null;
+    private DcMotorEx FRM = null;
+    private DcMotorEx BLM = null;
+    private DcMotorEx BRM = null;
+    private DcMotorEx[] motors;
 
     private AnalogInput FLE = null;
     private AnalogInput FRE = null;
@@ -52,6 +59,7 @@ public class RotationTuner extends LinearOpMode{
     private double x, y, heading;
     private static double trackwidth = 13.0, wheelbase = 13.0;
     private double wa[] = new double[4];
+    private double ws[] = new double[4];
 
     public static boolean normalize = false;
     private boolean flipped;
@@ -63,12 +71,12 @@ public class RotationTuner extends LinearOpMode{
     public void runOpMode() throws InterruptedException{
 
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
-
+//FL, BL, BR, FR
         FLS = hardwareMap.get(CRServoImplEx.class, "FLS");
         FRS = hardwareMap.get(CRServoImplEx.class, "FRS");
         BLS = hardwareMap.get(CRServoImplEx.class, "BLS");
         BRS = hardwareMap.get(CRServoImplEx.class, "BRS");
-        servos = new CRServoImplEx[]{FLS,FRS,BLS,BRS};
+        servos = new CRServoImplEx[]{FLS,BLS,BRS,FRS};
 
         FLE = hardwareMap.get(AnalogInput.class, "FLE");
         FRE = hardwareMap.get(AnalogInput.class, "FRE");
@@ -79,7 +87,13 @@ public class RotationTuner extends LinearOpMode{
         AFRE = new AbsoluteAnalogEncoder(FRE, 3.3);
         ABLE = new AbsoluteAnalogEncoder(BLE, 3.3);
         ABRE = new AbsoluteAnalogEncoder(BRE, 3.3);
-        AbsoluteAnalogEncoders = new AbsoluteAnalogEncoder[]{AFLE,AFRE,ABLE,ABRE};
+        AbsoluteAnalogEncoders = new AbsoluteAnalogEncoder[]{AFLE,ABLE,ABRE,AFRE};
+
+        FLM = hardwareMap.get(DcMotorEx.class, "FLM");
+        FRM = hardwareMap.get(DcMotorEx.class, "FRM");
+        BLM = hardwareMap.get(DcMotorEx.class, "BLM");
+        BRM = hardwareMap.get(DcMotorEx.class, "BRM");
+        motors = new DcMotorEx[]{FLM,BLM,BRM,FRM};
 
         rotationController = new PIDController(P, I, D);
 
@@ -95,13 +109,15 @@ public class RotationTuner extends LinearOpMode{
                 y = gamepad1.left_stick_y;
                 heading = gamepad1.left_trigger - gamepad1.right_trigger;
 
+
                 double R = hypot(trackwidth, wheelbase);
                 double  a = x - heading * (wheelbase / R),
                         b = x + heading * (wheelbase / R),
                         c = y - heading * (trackwidth / R),
                         d = y + heading * (trackwidth / R);
-
-                wa = new double[]{atan2(b, c), atan2(b, d), atan2(a, d), atan2(a, c)};
+                //front left, front right, back left, back right
+                ws = new double[]{hypot(b,c), hypot(b, d), hypot(a, c), hypot(a, d)};
+                wa = new double[]{atan2(b,c), atan2(b,d), atan2(a,c), atan2(a,d)};
                 target = wa[i];
             }
             else {
@@ -133,6 +149,7 @@ public class RotationTuner extends LinearOpMode{
                 rotationController.setPID(P, I, D);
                 power = rotationController.calculate(error, 0);
                 servos[i].setPower(power + ((Math.abs(error) > 0.02 ? (K_Static)*signum(power) : 0)));
+                motors[i].setPower(ws[i]);
 
             telemetry.addData("target", target);
             telemetry.addData("current", current);

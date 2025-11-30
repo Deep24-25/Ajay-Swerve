@@ -52,10 +52,11 @@ public class SwerveTest extends LinearOpMode {
     private AnalogInput BLE = null;
     private AnalogInput BRE = null;
 
+    //FL, BL, BR, FR
     private AbsoluteAnalogEncoder AFLE, AFRE, ABLE, ABRE;
-    public static double zeros[] = new double[]{0.2, 0.3, -0.2, 0.15};
+    public static double zeros[] = new double[]{0.2, 3.1, 3.3, 0.3};
     public static boolean inverses[] = new boolean[]{false,false,false,false};
-    public static double MotorScaling[] = new double[]{1,-1,1,-1};
+    public static double MotorScaling[] = new double[]{1,1,1,1}; //dont make negative inverse the encoder
 
     GoBildaPinpointDriver odo;
 
@@ -101,22 +102,23 @@ public class SwerveTest extends LinearOpMode {
         ABLE = new AbsoluteAnalogEncoder(BLE, 3.3);
         ABRE = new AbsoluteAnalogEncoder(BRE, 3.3);
 
+        //FL, BL, BR, FR
         AFLE.zero(zeros[0]);
         AFLE.setInverted(inverses[0]);
 
-        AFRE.zero(zeros[1]);
-        AFRE.setInverted(inverses[1]);
+        ABLE.zero(zeros[1]);
+        ABLE.setInverted(inverses[1]);
 
-        ABLE.zero(zeros[2]);
-        ABLE.setInverted(inverses[2]);
+        ABRE.zero(zeros[2]);
+        ABRE.setInverted(inverses[2]);
 
-        ABRE.zero(zeros[3]);
-        ABRE.setInverted(inverses[3]);
+        AFRE.zero(zeros[3]);
+        AFRE.setInverted(inverses[3]);
 
         frontLeftModule = new Module(FLM,FLS,AFLE,0.5,0.0,0.002,0.02);
-        frontRightModule = new Module(FRM,FRS,AFRE, 0.5,0.0,0.002,0.02);
-        backLeftModule = new Module(BLM,BLS,ABLE,0.5,0.0,0.002,0.02);
+        backLeftModule = new Module(BLM,BLS,ABLE, 0.5,0.0,0.002,0.02);
         backRightModule = new Module(BRM,BRS,ABRE,0.5,0.0,0.002,0.02);
+        frontRightModule = new Module(FRM,FRS,AFRE,0.5,0.0,0.002,0.02);
 
         modules = new Module[]{frontLeftModule, frontRightModule, backRightModule, backLeftModule};
         for (Module m : modules) m.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -144,17 +146,17 @@ public class SwerveTest extends LinearOpMode {
             AFLE.zero(zeros[0]);
             AFLE.setInverted(inverses[0]);
 
-            AFRE.zero(zeros[1]);
-            AFRE.setInverted(inverses[1]);
+            ABLE.zero(zeros[1]);
+            ABLE.setInverted(inverses[1]);
 
-            ABLE.zero(zeros[2]);
-            ABLE.setInverted(inverses[2]);
+            ABRE.zero(zeros[2]);
+            ABRE.setInverted(inverses[2]);
 
-            ABRE.zero(zeros[3]);
-            ABRE.setInverted(inverses[3]);
+            AFRE.zero(zeros[3]);
+            AFRE.setInverted(inverses[3]);
 
             x = gamepad1.left_stick_x;
-            y = -gamepad1.left_stick_y;
+            y = gamepad1.left_stick_y;
             heading = gamepad1.right_stick_x;
 
             if (gamepad1.options) {
@@ -185,9 +187,9 @@ public class SwerveTest extends LinearOpMode {
                     c = drive.y - drive.heading * (trackwidth / R),
                     d = drive.y + drive.heading * (trackwidth / R);
 
-            //top left, top right, bottom right, bottom left
-            ws = new double[]{hypot(a, d), hypot(b, c), hypot(a, c), hypot(b, d)};
-            wa = new double[]{atan2(a,d), atan2(b,c), atan2(a,c), atan2(b,d)};
+            //FL, BL, BR, FR
+            ws = new double[]{hypot(b,c), hypot(a, d), hypot(b, d), hypot(a, c)};
+            wa = new double[]{atan2(b,c), atan2(a,d), atan2(b,d), atan2(a,c)};
 
             MAX = MathUtils.max(ws);
 
