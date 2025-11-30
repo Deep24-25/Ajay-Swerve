@@ -67,6 +67,12 @@ public class RotationTuner extends LinearOpMode{
     public static int i;
     public static boolean gamepad;
 
+    private SlewRateLimiter XRate;
+    private SlewRateLimiter YRate;
+    private SlewRateLimiter HeadingRate;
+
+    public static double xrate = 4.0, yrate = 4.0, headingrate = 4.0;
+
     @Override
     public void runOpMode() throws InterruptedException{
 
@@ -97,6 +103,10 @@ public class RotationTuner extends LinearOpMode{
 
         rotationController = new PIDController(P, I, D);
 
+        XRate = new SlewRateLimiter(xrate);
+        YRate = new SlewRateLimiter(yrate);
+        HeadingRate = new SlewRateLimiter(headingrate);
+
         telemetry.addData("Status", "Initialized");
         telemetry.update();
         waitForStart();
@@ -105,10 +115,22 @@ public class RotationTuner extends LinearOpMode{
         while (opModeIsActive()) {
 
             if (gamepad) {
-                x = -gamepad1.left_stick_x;
+                x = gamepad1.left_stick_x;
                 y = gamepad1.left_stick_y;
                 heading = gamepad1.left_trigger - gamepad1.right_trigger;
 
+                XRate.setPositiveRateLimit(xrate);
+                XRate.setNegativeRateLimit(-xrate);
+
+                YRate.setPositiveRateLimit(yrate);
+                YRate.setNegativeRateLimit(-yrate);
+
+                HeadingRate.setPositiveRateLimit(headingrate);
+                HeadingRate.setNegativeRateLimit(-headingrate);
+
+                x = XRate.calculate(x);
+                y = YRate.calculate(y);
+                heading = HeadingRate.calculate(heading);
 
                 double R = hypot(trackwidth, wheelbase);
                 double  a = x - heading * (wheelbase / R),
@@ -116,8 +138,8 @@ public class RotationTuner extends LinearOpMode{
                         c = y - heading * (trackwidth / R),
                         d = y + heading * (trackwidth / R);
                 //front left, front right, back left, back right
-                ws = new double[]{hypot(b,c), hypot(b, d), hypot(a, c), hypot(a, d)};
-                wa = new double[]{atan2(b,c), atan2(b,d), atan2(a,c), atan2(a,d)};
+                ws = new double[]{hypot(b,c), hypot(a, d), hypot(b, d), hypot(a, c)};
+                wa = new double[]{atan2(b,c), atan2(a,d), atan2(b,d), atan2(a,c)};
                 target = wa[i];
             }
             else {
@@ -153,6 +175,8 @@ public class RotationTuner extends LinearOpMode{
 
             telemetry.addData("target", target);
             telemetry.addData("current", current);
+            telemetry.addData("encoder voltage", AbsoluteAnalogEncoders[i].getCurrentPosition());
+            telemetry.addData("wheel speed", ws[i]);
             telemetry.update();
         }
     }

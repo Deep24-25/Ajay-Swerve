@@ -54,7 +54,9 @@ public class SwerveTest extends LinearOpMode {
 
     //FL, BL, BR, FR
     private AbsoluteAnalogEncoder AFLE, AFRE, ABLE, ABRE;
-    public static double zeros[] = new double[]{0.2, 3.1, 3.3, 0.3};
+    private AbsoluteAnalogEncoder[] Encoders;
+    public static double zeros[] = new double[]{-0.2, 1.1, 3.2, 0.3};
+
     public static boolean inverses[] = new boolean[]{false,false,false,false};
     public static double MotorScaling[] = new double[]{1,1,1,1}; //dont make negative inverse the encoder
 
@@ -68,8 +70,8 @@ public class SwerveTest extends LinearOpMode {
     double[] ws = new double[4];
     double[] wa = new double[4];
 
-    private double trackwidth = 13.0;
-    private double wheelbase = 13.0;
+    private double trackwidth = 13.0; //CC distances of modules //find in CAD
+    private double wheelbase = 13.0;  // trackwidth is along the width of the robot wheel base is along the length
     private double R;
 
     private double Xoffset, Yoffset;
@@ -77,12 +79,20 @@ public class SwerveTest extends LinearOpMode {
 
     private double MAX;
 
+    private SlewRateLimiter XRate, YRate, HeadingRate;
+    private SlewRateLimiter[] SlewRateLimiters;
+
+    public static double xrate = 4.0, yrate = 4.0, headingrate = 2.0;
+    public static double[] SlewRateLimits = new double[3];
+
+    public static int i; //only used for dash to telemetry data from the different modules
+
     @Override
     public void runOpMode() throws InterruptedException{
 
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
 
-        FLM = hardwareMap.get(DcMotorEx.class, "FLM");
+        FLM = hardwareMap.get(DcMotorEx.class, "FLM"); //hardware map
         FRM = hardwareMap.get(DcMotorEx.class, "FRM");
         BLM = hardwareMap.get(DcMotorEx.class, "BLM");
         BRM = hardwareMap.get(DcMotorEx.class, "BRM");
@@ -101,19 +111,12 @@ public class SwerveTest extends LinearOpMode {
         AFRE = new AbsoluteAnalogEncoder(FRE, 3.3);
         ABLE = new AbsoluteAnalogEncoder(BLE, 3.3);
         ABRE = new AbsoluteAnalogEncoder(BRE, 3.3);
+        Encoders = new AbsoluteAnalogEncoder[]{AFLE, ABLE, ABRE, AFRE};
 
-        //FL, BL, BR, FR
-        AFLE.zero(zeros[0]);
-        AFLE.setInverted(inverses[0]);
-
-        ABLE.zero(zeros[1]);
-        ABLE.setInverted(inverses[1]);
-
-        ABRE.zero(zeros[2]);
-        ABRE.setInverted(inverses[2]);
-
-        AFRE.zero(zeros[3]);
-        AFRE.setInverted(inverses[3]);
+        for (int i = 0; i < 4; i++) {
+            Encoders[i].zero(zeros[i]);
+            Encoders[i].setInverted(inverses[i]);
+        }
 
         frontLeftModule = new Module(FLM,FLS,AFLE,0.5,0.0,0.002,0.02);
         backLeftModule = new Module(BLM,BLS,ABLE, 0.5,0.0,0.002,0.02);
@@ -123,9 +126,12 @@ public class SwerveTest extends LinearOpMode {
         modules = new Module[]{frontLeftModule, frontRightModule, backRightModule, backLeftModule};
         for (Module m : modules) m.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
+        SlewRateLimiters = new SlewRateLimiter[]{XRate, YRate, HeadingRate};
+        SlewRateLimits = new double[]{xrate, yrate, headingrate};
+
         odo = hardwareMap.get(GoBildaPinpointDriver.class, "odo");
 
-        Xoffset = 10.5; Yoffset = 1;
+        Xoffset = 10.5; Yoffset = 1; //find in CAD
         odo.setOffsets(Xoffset, Yoffset);
         odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
         odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.FORWARD, GoBildaPinpointDriver.EncoderDirection.REVERSED);
@@ -141,87 +147,81 @@ public class SwerveTest extends LinearOpMode {
         runtime.reset();
 
         while (opModeIsActive()) {
-
-
-            AFLE.zero(zeros[0]);
-            AFLE.setInverted(inverses[0]);
-
-            ABLE.zero(zeros[1]);
-            ABLE.setInverted(inverses[1]);
-
-            ABRE.zero(zeros[2]);
-            ABRE.setInverted(inverses[2]);
-
-            AFRE.zero(zeros[3]);
-            AFRE.setInverted(inverses[3]);
-
-            x = gamepad1.left_stick_x;
-            y = gamepad1.left_stick_y;
-            heading = gamepad1.right_stick_x;
+            odo.update();
 
             if (gamepad1.options) {
                 odo.resetPosAndIMU();
+                odo.update();
             }
-
-            odo.update();
 
             pos = odo.getPosition();
             BotHeading = -pos.getHeading(RADIANS);
 
+            for (int i = 0; i < 4; i++) {
+                Encoders[i].zero(zeros[i]);
+                Encoders[i].setInverted(inverses[i]);
+            }
+
+            x = -gamepad1.left_stick_x; //getting gamepad inputs
+            y = -gamepad1.left_stick_y;
+            heading = -gamepad1.right_stick_x;
+
             if (abs(x) < 0.02){
                 x = 0;
             }
+
             if (abs(y) < 0.02){
                 y = 0;
             }
+
             if (abs(heading) < 0.02){
                 heading = 0;
             }
 
-            Pose drive = new Pose((new Point(x,y).rotate(BotHeading)), heading);
+            Pose drive = new Pose((new Point(x,y).rotate(BotHeading)), heading); //creating target pose and rotating it to become field centric
 
-            double R = hypot(wheelbase, trackwidth);
+            for (int i = 0; i < 3; i++) {
+                SlewRateLimiters[i].setPositiveRateLimit(SlewRateLimits[i]);
+                SlewRateLimiters[i].setNegativeRateLimit(-SlewRateLimits[i]);
+            }
 
-            double  a = drive.x - drive.heading * (wheelbase / R),
-                    b = drive.x + drive.heading * (wheelbase / R),
-                    c = drive.y - drive.heading * (trackwidth / R),
-                    d = drive.y + drive.heading * (trackwidth / R);
+            if (x != 0 && y != 0 && heading != 0) {
+                drive.x = XRate.calculate(drive.x); //calculating wheel speeds and angles
+                drive.y = YRate.calculate(drive.y);
+                drive.heading = HeadingRate.calculate(drive.heading);
 
-            //FL, BL, BR, FR
-            ws = new double[]{hypot(b,c), hypot(a, d), hypot(b, d), hypot(a, c)};
-            wa = new double[]{atan2(b,c), atan2(a,d), atan2(b,d), atan2(a,c)};
+                double R = hypot(wheelbase, trackwidth);
+                double  a = drive.x - drive.heading * (wheelbase / R),
+                        b = drive.x + drive.heading * (wheelbase / R),
+                        c = drive.y - drive.heading * (trackwidth / R),
+                        d = drive.y + drive.heading * (trackwidth / R);
 
-            MAX = MathUtils.max(ws);
+                //FL, BL, BR, FR
+                ws = new double[]{hypot(b,c), hypot(a, d), hypot(b, d), hypot(a, c)};
+                wa = new double[]{atan2(b,c), atan2(a,d), atan2(b,d), atan2(a,c)};
+            }
 
-            /*if (x == 0 && y == 0 && heading == 0){
-                wa = new double[]{atan2(1,1), atan2(-1, 1), atan2(-1, -1), atan2(1, -1)};
-            }*/
+            else if (x == 0 && y == 0 && heading == 0) {
+                wa = new double[]{atan2(1,1), atan2(-1, 1), atan2(-1, -1), atan2(1, -1)}; //setting the default poistion to locked
+                ws = new double[]{0,0,0,0};
+            }
 
              for (int i = 0; i < 4; i++) {
-                Module m = modules[i];
-                if (Math.abs(MAX) > 1) ws[i] /= MAX;
+                Module m = modules[i]; //updating each module
                 m.setMotorPower(Math.abs(ws[i])*MotorScaling[i]);
                 m.setTargetRotation(MathUtils.norm(wa[i]));
                 m.update();
                 odo.update();
             }
 
-            telemetry.addData("front left target angle", Arrays.toString(wa));
-            telemetry.addData("front left voltage", AFLE.getVoltage());
-            telemetry.addData("front right voltage", AFRE.getVoltage());
-            telemetry.addData("back left voltage", ABLE.getVoltage());
-            telemetry.addData("back right voltage", ABRE.getVoltage());
-            telemetry.addData("front left encoder angle", frontLeftModule.getcurrentposition());
-            telemetry.addData("front left angle", frontLeftModule.getModuleRotation());
-            telemetry.addData("front right angle", frontRightModule.getModuleRotation());
-            telemetry.addData("back left angle", backLeftModule.getModuleRotation());
-            telemetry.addData("back right angle", backRightModule.getModuleRotation());
+            telemetry.addData("wheel angle", wa[i]);
             telemetry.addData("x", x);
             telemetry.addData("y", y);
             telemetry.addData("heading", heading);
             telemetry.addData("BotHeading", BotHeading);
-            telemetry.addData("rotated x", drive.x);
-            telemetry.addData("rotated y", drive.y);
+            telemetry.addData("transformed x", drive.x);
+            telemetry.addData("transformed y", drive.y);
+            telemetry.addData("wheel speed", ws[i]);
 
             telemetry.update();
         }
