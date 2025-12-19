@@ -5,9 +5,7 @@ import static org.firstinspires.ftc.robotcore.external.navigation.AngleUnit.RADI
 import java.util.Arrays;
 import static java.lang.Math.abs;
 import static java.lang.Math.atan2;
-import static java.lang.Math.cos;
 import static java.lang.Math.hypot;
-import static java.lang.Math.sin;
 
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
@@ -26,8 +24,7 @@ import org.firstinspires.ftc.teamcode.Geo.Point;
 import org.firstinspires.ftc.teamcode.Geo.Pose;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.CRServoImplEx;
-import com.qualcomm.robotcore.hardware.IMU;
-import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
+
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.teamcode.Hardware.AbsoluteAnalogEncoder;
 
@@ -55,7 +52,7 @@ public class SwerveTest extends LinearOpMode {
     //FL, BL, BR, FR
     private AbsoluteAnalogEncoder AFLE, AFRE, ABLE, ABRE;
     private AbsoluteAnalogEncoder[] Encoders;
-    public static double zeros[] = new double[]{-0.2, 1.1, 3.2, 0.3};
+    public static double zeros[] = new double[]{-0.2, 1.1, 3.2, 1.1};
 
     public static boolean inverses[] = new boolean[]{false,false,false,false};
     public static double MotorScaling[] = new double[]{1,1,1,1}; //dont make negative inverse the encoder
@@ -82,7 +79,7 @@ public class SwerveTest extends LinearOpMode {
     private SlewRateLimiter XRate, YRate, HeadingRate;
     private SlewRateLimiter[] SlewRateLimiters;
 
-    public static double xrate = 4.0, yrate = 4.0, headingrate = 2.0;
+    public static double xrate = 2.0, yrate = 2.0, headingrate = 2.0;
     public static double[] SlewRateLimits = new double[3];
 
     public static int i; //only used for dash to telemetry data from the different modules
@@ -113,21 +110,22 @@ public class SwerveTest extends LinearOpMode {
         ABRE = new AbsoluteAnalogEncoder(BRE, 3.3);
         Encoders = new AbsoluteAnalogEncoder[]{AFLE, ABLE, ABRE, AFRE};
 
-        for (int i = 0; i < 4; i++) {
-            Encoders[i].zero(zeros[i]);
-            Encoders[i].setInverted(inverses[i]);
-        }
+        AFLE.zero(zeros[0]); AFLE.setInverted(inverses[0]);
+        AFRE.zero(zeros[1]); AFRE.setInverted(inverses[1]);
+        ABRE.zero(zeros[2]); ABRE.setInverted(inverses[2]);
+        ABLE.zero(zeros[3]); ABLE.setInverted(inverses[3]);
 
-        frontLeftModule = new Module(FLM,FLS,AFLE,0.5,0.0,0.002,0.02);
-        backLeftModule = new Module(BLM,BLS,ABLE, 0.5,0.0,0.002,0.02);
-        backRightModule = new Module(BRM,BRS,ABRE,0.5,0.0,0.002,0.02);
-        frontRightModule = new Module(FRM,FRS,AFRE,0.5,0.0,0.002,0.02);
+        frontLeftModule = new Module(FLM,FLS,AFLE,0.7,0.0,0.002,0.02);
+        backLeftModule = new Module(BLM,BLS,ABLE, 0.7,0.0,0.002,0.02);
+        backRightModule = new Module(BRM,BRS,ABRE,0.7,0.0,0.002,0.02);
+        frontRightModule = new Module(FRM,FRS,AFRE,0.7,0.0,0.002,0.02);
 
         modules = new Module[]{frontLeftModule, frontRightModule, backRightModule, backLeftModule};
         for (Module m : modules) m.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
-        SlewRateLimiters = new SlewRateLimiter[]{XRate, YRate, HeadingRate};
-        SlewRateLimits = new double[]{xrate, yrate, headingrate};
+        XRate = new SlewRateLimiter(xrate);
+        YRate = new SlewRateLimiter(yrate);
+        HeadingRate = new SlewRateLimiter(headingrate);
 
         odo = hardwareMap.get(GoBildaPinpointDriver.class, "odo");
 
@@ -147,7 +145,6 @@ public class SwerveTest extends LinearOpMode {
         runtime.reset();
 
         while (opModeIsActive()) {
-            odo.update();
 
             if (gamepad1.options) {
                 odo.resetPosAndIMU();
@@ -157,12 +154,12 @@ public class SwerveTest extends LinearOpMode {
             pos = odo.getPosition();
             BotHeading = -pos.getHeading(RADIANS);
 
-            for (int i = 0; i < 4; i++) {
-                Encoders[i].zero(zeros[i]);
-                Encoders[i].setInverted(inverses[i]);
-            }
+            AFLE.zero(zeros[0]); AFLE.setInverted(inverses[0]);
+            AFRE.zero(zeros[1]); AFRE.setInverted(inverses[1]);
+            ABRE.zero(zeros[2]); ABRE.setInverted(inverses[2]);
+            ABLE.zero(zeros[3]); ABLE.setInverted(inverses[3]);
 
-            x = -gamepad1.left_stick_x; //getting gamepad inputs
+            x = gamepad1.left_stick_x; //getting gamepad inputs
             y = -gamepad1.left_stick_y;
             heading = -gamepad1.right_stick_x;
 
@@ -180,48 +177,54 @@ public class SwerveTest extends LinearOpMode {
 
             Pose drive = new Pose((new Point(x,y).rotate(BotHeading)), heading); //creating target pose and rotating it to become field centric
 
-            for (int i = 0; i < 3; i++) {
-                SlewRateLimiters[i].setPositiveRateLimit(SlewRateLimits[i]);
-                SlewRateLimiters[i].setNegativeRateLimit(-SlewRateLimits[i]);
-            }
+            XRate.setPositiveRateLimit(xrate);
+            XRate.setNegativeRateLimit(-xrate);
 
-            if (x != 0 && y != 0 && heading != 0) {
-                drive.x = XRate.calculate(drive.x); //calculating wheel speeds and angles
-                drive.y = YRate.calculate(drive.y);
-                drive.heading = HeadingRate.calculate(drive.heading);
+            YRate.setPositiveRateLimit(yrate);
+            YRate.setNegativeRateLimit(-yrate);
 
-                double R = hypot(wheelbase, trackwidth);
-                double  a = drive.x - drive.heading * (wheelbase / R),
-                        b = drive.x + drive.heading * (wheelbase / R),
-                        c = drive.y - drive.heading * (trackwidth / R),
-                        d = drive.y + drive.heading * (trackwidth / R);
+            HeadingRate.setPositiveRateLimit(headingrate);
+            HeadingRate.setNegativeRateLimit(-headingrate);
 
-                //FL, BL, BR, FR
-                ws = new double[]{hypot(b,c), hypot(a, d), hypot(b, d), hypot(a, c)};
-                wa = new double[]{atan2(b,c), atan2(a,d), atan2(b,d), atan2(a,c)};
-            }
+            drive.x = XRate.calculate(drive.x); //calculating wheel speeds and angles
+            drive.y = YRate.calculate(drive.y);
+            drive.heading = HeadingRate.calculate(drive.heading);
 
-            else if (x == 0 && y == 0 && heading == 0) {
-                wa = new double[]{atan2(1,1), atan2(-1, 1), atan2(-1, -1), atan2(1, -1)}; //setting the default poistion to locked
+            double R = hypot(wheelbase, trackwidth);
+            double  a = drive.x - drive.heading * (wheelbase / R), //-2
+                    b = drive.x + drive.heading * (wheelbase / R),
+                    c = drive.y - drive.heading * (trackwidth / R),
+                    d = drive.y + drive.heading * (trackwidth / R);
+
+            //FL, BL, BR, FR
+            ws = new double[]{hypot(b,c), hypot(a, d), hypot(b, d), hypot(a, c)};
+            wa = new double[]{atan2(b,c), atan2(a,d), atan2(b,d), atan2(a,c)};
+
+            if (x == 0 && y == 0 && heading == 0) {
                 ws = new double[]{0,0,0,0};
+                wa = new double[]{atan2(1,-1), atan2(-1,1), atan2(1,1), atan2(-1,-1)};
             }
 
-             for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 4; i++) {
                 Module m = modules[i]; //updating each module
-                m.setMotorPower(Math.abs(ws[i])*MotorScaling[i]);
+                ws[i] = ws[i] * MotorScaling[i];
                 m.setTargetRotation(MathUtils.norm(wa[i]));
-                m.update();
+                m.update(ws[i]);
                 odo.update();
             }
 
-            telemetry.addData("wheel angle", wa[i]);
+            telemetry.addData("wheel angle", Arrays.toString(wa));
             telemetry.addData("x", x);
             telemetry.addData("y", y);
             telemetry.addData("heading", heading);
             telemetry.addData("BotHeading", BotHeading);
             telemetry.addData("transformed x", drive.x);
             telemetry.addData("transformed y", drive.y);
-            telemetry.addData("wheel speed", ws[i]);
+            telemetry.addData("wheel speed", Arrays.toString(ws));
+            telemetry.addData("front left module", frontLeftModule.getTele());
+            telemetry.addData("front right module", frontRightModule.getTele());
+            telemetry.addData("back right module", backRightModule.getTele());
+            telemetry.addData("back left module", backLeftModule.getTele());
 
             telemetry.update();
         }

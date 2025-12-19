@@ -15,12 +15,12 @@ import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.teamcode.Hardware.AbsoluteAnalogEncoder;
 
+import java.util.Locale;
+
 @Config
 public class Module {
 
     private double MAX_SERVO = 1, MAX_MOTOR = 1;
-
-    private boolean MOTOR_FLIPPING = true;
 
     private DcMotorEx motor;
     private CRServoImplEx servo;
@@ -31,6 +31,7 @@ public class Module {
     private double target = 0.0;
     private double position = 0.0;
     private boolean inverted = false;
+    double lastMotorPower;
 
     private double k_static, p, i, d;
 
@@ -52,33 +53,39 @@ public class Module {
         motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
     }
 
-    public void update() {
+    public void update(double Power) {
         rotationController.setPID(p, i, d);
 
         double target = getTargetRotation(), current = getModuleRotation();
 
-        double error = target - current;
+        double error = normalizeRadians(target - current);
 
         if (Math.abs(error) > Math.PI / 2) {
             target = normalizeRadians(target - Math.PI);
-            error = normalizeRadians(target - current);
             wheelFlipped = true;
         }
         else {
             wheelFlipped = false;
         }
 
+        error = normalizeRadians(target - current);
+
+        if (Math.abs(error) < 0.05) {
+            error = 0;
+        }
+
         double power = Range.clip(rotationController.calculate(error, 0), -MAX_SERVO, MAX_SERVO);
+        if (Double.isNaN(power)) power = 0;
         servo.setPower(power + (Math.abs(error) > 0.02 ? signum(power) * k_static : 0));
     }
 
     public void setMotorPower(double power) {
+
         if (wheelFlipped) {
-            power = -1 * power;
+            power *= -1;
         }
-        else {
-            power = power;
-        }
+
+        lastMotorPower = power;
         motor.setPower(power);
     }
 
@@ -87,7 +94,7 @@ public class Module {
     }
 
     public double getTargetRotation() {
-        return normalizeRadians(target );
+        return normalizeRadians(target);
     }
 
     public double getModuleRotation() {
@@ -98,5 +105,7 @@ public class Module {
         motor.setMode(runMode);
     }
 
-    public double getcurrentposition() { return encoder.getCurrentPosition();}
+    public String getTele() {
+        return String.format(Locale.ENGLISH,"Motor Flipped: %b current position %.2f target position %.2f, motor power %.2f", wheelFlipped, getModuleRotation(), getTargetRotation(), lastMotorPower);
+    }
 }
