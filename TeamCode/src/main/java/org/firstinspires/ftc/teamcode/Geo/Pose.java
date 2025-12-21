@@ -42,4 +42,8 @@ public class Pose extends Point {
     public Pose subPose(Pose other){
         return new Pose(x - other.x, y - other.y, heading - other.heading);
     }
+
+    public Pose rotatePosePoint(Pose other, Double rotationAmount) {
+        return new Pose(new Point(other.x,other.y).rotate(rotationAmount),other.heading);
+    }
 }

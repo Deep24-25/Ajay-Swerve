@@ -1,33 +1,30 @@
 package org.firstinspires.ftc.teamcode.Swerve;
 
 import static org.firstinspires.ftc.robotcore.external.navigation.AngleUnit.RADIANS;
-import static org.firstinspires.ftc.teamcode.Swerve.swerveTuningTele.headingrate;
-import static org.firstinspires.ftc.teamcode.Swerve.swerveTuningTele.inverses;
-import static org.firstinspires.ftc.teamcode.Swerve.swerveTuningTele.offsets;
-import static org.firstinspires.ftc.teamcode.Swerve.swerveTuningTele.scalars;
-import static org.firstinspires.ftc.teamcode.Swerve.swerveTuningTele.xrate;
-import static org.firstinspires.ftc.teamcode.Swerve.swerveTuningTele.yrate;
+import static org.firstinspires.ftc.robotcore.external.navigation.AngleUnit.normalizeRadians;
+
 import static java.lang.Math.abs;
+import static java.lang.Math.signum;
+
 import com.acmerobotics.dashboard.FtcDashboard;
-import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.pedropathing.localization.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.acmerobotics.dashboard.config.Config;
 import com.qualcomm.robotcore.util.ElapsedTime;
+
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.Geo.Point;
 import org.firstinspires.ftc.teamcode.Geo.Pose;
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.teamcode.Hardware.robotHardware;
-import org.firstinspires.ftc.teamcode.Limiters.JoystickScaling;
 import org.firstinspires.ftc.teamcode.Limiters.SlewRateLimiter;
 
 @Config
 @TeleOp
-public class SwerveTest extends LinearOpMode {
-
+public class swerveTuningTele extends LinearOpMode{
     private ElapsedTime runtime = new ElapsedTime();
 
     private robotHardware robot;
@@ -42,18 +39,22 @@ public class SwerveTest extends LinearOpMode {
     private Pose2D pos;
 
     private SlewRateLimiter XRate, YRate, HeadingRate;
-    private JoystickScaling StrafingScaler, TurningScaler;
+    public static double xrate = 4.0, yrate = 4.0, headingrate = 3.0;
+
+    public static double offsets[] = new double[]{-0.2, 1.1, 3.2, 1.1};
+    public static boolean inverses[] = new boolean[]{false, false, false, false};
+    public static double scalars[] = new double[]{1, 1, 1, 1};
+
+    public static int i;
+    public static boolean gamepad;
 
     @Override
     public void runOpMode() throws InterruptedException{
-
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
 
         XRate = new SlewRateLimiter(xrate);
         YRate = new SlewRateLimiter(yrate);
         HeadingRate = new SlewRateLimiter(headingrate);
-        StrafingScaler = new JoystickScaling();
-        TurningScaler = new JoystickScaling();
 
         odo = hardwareMap.get(GoBildaPinpointDriver.class, "odo");
 
@@ -70,10 +71,6 @@ public class SwerveTest extends LinearOpMode {
         robot = new robotHardware(hardwareMap);
         swerveDrivetrain = new swerveDrivetrain(robot);
 
-        swerveDrivetrain.setOffsets(offsets);
-        swerveDrivetrain.setInverses(inverses);
-        swerveDrivetrain.setMotorScaling(scalars);
-
         telemetry.addData("Status", "Initialized");
         telemetry.update();
         waitForStart();
@@ -82,31 +79,60 @@ public class SwerveTest extends LinearOpMode {
         while (opModeIsActive()) {
             if (gamepad1.options) {
                 odo.resetPosAndIMU();
+                odo.update();
             }
-
-            odo.update();
             pos = odo.getPosition();
             BotHeading = -pos.getHeading(RADIANS);
 
-            Pose drive = new Pose((StrafingScaler.ScaleVector(new Point(gamepad1.left_stick_x, -gamepad1.left_stick_y))), (-TurningScaler.Scale(gamepad1.right_stick_x, 0.01, 0.66, 4)));
-            drive = new Pose(new Point(XRate.calculate(drive.x), YRate.calculate(drive.y)).rotate(BotHeading), HeadingRate.calculate(drive.heading));
+            x = gamepad1.left_stick_x; //getting gamepad inputs
+            y = -gamepad1.left_stick_y;
+            heading = -gamepad1.right_stick_x;
 
-            if (drive.x == 0 && drive.y == 0 && drive.heading == 0) {
-                locked = true;
-            }
-            else {
-                locked = false;
+            if (abs(x) < 0.02){
+                x = 0;
             }
 
-            swerveDrivetrain.setLocked(locked);
+            if (abs(y) < 0.02){
+                y = 0;
+            }
+
+            if (abs(heading) < 0.02){
+                heading = 0;
+            }
+
+//            if (x == 0 && y == 0 && heading == 0) {
+//                locked = true;
+//            }
+//            else {
+//                locked = false;
+//            }
+
+            Pose drive = new Pose((new Point(x,y).rotate(BotHeading)), heading);
+
+            XRate.setPositiveRateLimit(xrate);
+            XRate.setNegativeRateLimit(-xrate);
+
+            YRate.setPositiveRateLimit(yrate);
+            YRate.setNegativeRateLimit(-yrate);
+
+            HeadingRate.setPositiveRateLimit(headingrate);
+            HeadingRate.setNegativeRateLimit(-headingrate);
+
+            drive = new Pose(XRate.calculate(drive.x), YRate.calculate(drive.y), HeadingRate.calculate(drive.heading));
+
+            swerveDrivetrain.setOffsets(offsets);
+            swerveDrivetrain.setInverses(inverses);
+
             swerveDrivetrain.setPose(drive);
             swerveDrivetrain.updateModules();
+            swerveDrivetrain.updateModule(i);
 
-            telemetry.addData("Bot Heading", BotHeading);
-            telemetry.addData("Tele Module \n",swerveDrivetrain.getTele());
+            telemetry.addData("x", drive.x);
+            telemetry.addData("y", drive.y);
+            telemetry.addData("heading", drive.heading);
+            telemetry.addData("tele \n", swerveDrivetrain.getTele());
+            telemetry.addData("locked", locked);
             telemetry.update();
         }
-
     }
-
 }
